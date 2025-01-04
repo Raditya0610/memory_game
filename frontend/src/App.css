@@ -98,3 +98,18 @@
     font-size: 20px;
   }
 }
+
+.announcement {
+  position: fixed;
+  font-size: 1.2rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgb(149, 255, 0);
+  padding: 20px;
+  border: 2px solid #000000;
+  box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  text-align: center;
+  border-radius: 15px;
+}

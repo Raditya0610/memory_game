@@ -11,6 +11,8 @@ const App = () => {
   const [pickedCards, setPickedCards] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
+  const [winner, setWinner] = useState(null); // Menambahkan state untuk menangkap pemenang
+  const [gameOver, setGameOver] = useState(false); // Tambahkan state gameOver
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -24,10 +26,14 @@ const App = () => {
     });
 
     socket.on("game-start", (data) => {
-      setCards(data.cards);
-      setRevealed(new Array(data.cards.length).fill(false));
-      setPickedCards([]);
+      setCards(data.cards); // Reset kartu
+      setRevealed(new Array(data.cards.length).fill(false)); // Reset kartu yang sudah terbuka
+      setPickedCards([]); // Reset kartu yang dipilih
+      setWinner(null); // Reset pemenang
+      setGameOver(false); // Reset status game over
+      setScore({}); // Reset skor
     });
+    
 
     socket.on("match", ({ index1, index2 }) => {
       setRevealed(prev => {
@@ -49,6 +55,20 @@ const App = () => {
       setScore(players);
     });
 
+    socket.on("game-over", ({ winner }) => {
+      setWinner(winner); // Set winner ketika game over
+      setGameOver(true); // Tandai permainan selesai
+    });
+
+    socket.on("game-reset", () => {
+      setCards(cards);
+      setRevealed(new Array(cards.length).fill(false));
+      setPickedCards([]);
+      setScore();
+      setWinner(null);
+      setGameOver(false);
+    });
+
     return () => {
       socket.off("connect");
       socket.off("connect_error");
@@ -56,11 +76,12 @@ const App = () => {
       socket.off("match");
       socket.off("no-match");
       socket.off("score-update");
+      socket.off("game-over");
     };
   }, []);
 
   const handleCardClick = (index) => {
-    if (pickedCards.length === 2 || revealed[index] || pickedCards.includes(index)) return;
+    if (gameOver || pickedCards.length === 2 || revealed[index] || pickedCards.includes(index)) return;
 
     const updatedPickedCards = [...pickedCards, index];
     setPickedCards(updatedPickedCards);
@@ -76,10 +97,13 @@ const App = () => {
   return (
     <div className="container">
       <h1 className="title">Memory Game</h1>
-      
-      {error && (
-        <div className="error">
-          {error}
+
+      {error && <div className="error">{error}</div>}
+
+      {/* Menampilkan pengumuman pemenang */}
+      {gameOver && (
+        <div className="announcement">
+          <h2>GAME OVER! Player {winner.slice(0, 4)} is the winner 🎉</h2>
         </div>
       )}
 
