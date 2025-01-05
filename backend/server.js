@@ -29,10 +29,21 @@ function initializeGame() {
 }
 
 function checkWinner() {
+  const activePlayers = Object.entries(players);
+  if (activePlayers.length === 0) return;
+  
   const maxScore = Math.max(...Object.values(players)); // Mencari skor tertinggi
   if (maxScore > highestScore) {
     highestScore = maxScore;
     winner = Object.keys(players).find(key => players[key] === maxScore); // Menentukan player dengan skor tertinggi
+  }
+
+  if (!players[winner]) {
+    winner = null;
+    // Recalculate winner dari player yang aktif
+    const currentMaxScore = Math.max(...Object.values(players));
+    winner = Object.keys(players).find(key => players[key] === currentMaxScore);
+    highestScore = currentMaxScore;
   }
 
   // Jika semua kartu telah ditemukan (8 pairs)
@@ -40,6 +51,15 @@ function checkWinner() {
     io.emit("game-over", { winner }); // Kirim pengumuman pemenang ke semua klien
     //io.removeAllListeners(); // Hentikan semua listener (opsional untuk mencegah interaksi)
   }
+}
+
+function resetGame() {
+  initializeGame();
+  highestScore = 0;
+  winner = null;
+  io.emit("game-reset"); // Emit event baru untuk memberitahu client bahwa game direset
+  io.emit("game-start", { cards });
+  io.emit("score-update", players);
 }
 
 // Ketika pemain terkoneksi
@@ -50,23 +70,13 @@ io.on("connection", (socket) => {
 
 
   // Inisialisasi ulang game untuk semua pemain saat pemain baru terhubung
-  if (Object.keys(players).length === 1) { // Jika ini pemain pertama
-    initializeGame(); // Inisialisasi ulang kartu
+  if (Object.keys(players).length === 1) {
+    resetGame();
+  } else {
+    socket.emit("game-start", { cards });
+    io.emit("score-update", players);
   }
 
-  // Kirim kartu ke pemain baru
-  socket.emit("game-start", { cards });
-
-  // Hapus status game sebelumnya
-  if (winner || highestScore > 0) {
-    winner = null;
-    highestScore = 0;
-  }
-
-  /* Socket mengirim "game start" dan memunculkan kartu-kartu yang sudah
-  disimpan di 'cards'*/
-  socket.emit("game-start", { cards });
-  io.emit("score-update", players); // Kirim skor terbaru ke semua pemain
 
   /* Socket menerima input dari client yaitu pilihan kartu player dan mengecek kesesuaian*/
   socket.on("card-pick", ({ index1, index2 }) => {
@@ -86,6 +96,12 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`Player disconnected: ${socket.id}`);
     delete players[socket.id];
+
+    if (Object.keys(players).length === 0) {
+      resetGame();
+    } else {
+      io.emit("score-update", players);
+    }
   });
 });
 

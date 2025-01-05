@@ -11,31 +11,35 @@ const App = () => {
   const [pickedCards, setPickedCards] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
-  const [winner, setWinner] = useState(null); // Menambahkan state untuk menangkap pemenang
-  const [gameOver, setGameOver] = useState(false); // Tambahkan state gameOver
+  const [winner, setWinner] = useState(null);
+  const [gameOver, setGameOver] = useState(false);
+
+  // Fungsi untuk reset state game
+  const resetGameState = (newCards = []) => {
+    setCards(newCards);
+    setRevealed(new Array(newCards.length).fill(false));
+    setPickedCards([]);
+    setWinner(null);
+    setGameOver(false);
+  };
 
   useEffect(() => {
-    socket.on("connect", () => {
+    const handleConnect = () => {
       setIsConnected(true);
       setError(null);
-    });
+    };
 
-    socket.on("connect_error", () => {
+    const handleConnectError = () => {
       setError("Failed to connect to server");
       setIsConnected(false);
-    });
+    };
 
-    socket.on("game-start", (data) => {
-      setCards(data.cards); // Reset kartu
-      setRevealed(new Array(data.cards.length).fill(false)); // Reset kartu yang sudah terbuka
-      setPickedCards([]); // Reset kartu yang dipilih
-      setWinner(null); // Reset pemenang
-      setGameOver(false); // Reset status game over
-      setScore({}); // Reset skor
-    });
-    
+    const handleGameStart = (data) => {
+      resetGameState(data.cards);
+      setScore({});
+    };
 
-    socket.on("match", ({ index1, index2 }) => {
+    const handleMatch = ({ index1, index2 }) => {
       setRevealed(prev => {
         const updated = [...prev];
         updated[index1] = true;
@@ -43,45 +47,55 @@ const App = () => {
         return updated;
       });
       setPickedCards([]);
-    });
+    };
 
-    socket.on("no-match", () => {
+    const handleNoMatch = () => {
       setTimeout(() => {
         setPickedCards([]);
       }, 1000);
-    });
-
-    socket.on("score-update", (players) => {
-      setScore(players);
-    });
-
-    socket.on("game-over", ({ winner }) => {
-      setWinner(winner); // Set winner ketika game over
-      setGameOver(true); // Tandai permainan selesai
-    });
-
-    socket.on("game-reset", () => {
-      setCards(cards);
-      setRevealed(new Array(cards.length).fill(false));
-      setPickedCards([]);
-      setScore();
-      setWinner(null);
-      setGameOver(false);
-    });
-
-    return () => {
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("game-start");
-      socket.off("match");
-      socket.off("no-match");
-      socket.off("score-update");
-      socket.off("game-over");
     };
-  }, []);
+
+    const handleScoreUpdate = (players) => {
+      setScore(players || {});
+    };
+
+    const handleGameOver = ({ winner }) => {
+      setWinner(winner);
+      setGameOver(true);
+    };
+
+    const handleGameReset = () => {
+      resetGameState(cards);
+      setScore({});
+    };
+
+    // Event listeners
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("game-start", handleGameStart);
+    socket.on("match", handleMatch);
+    socket.on("no-match", handleNoMatch);
+    socket.on("score-update", handleScoreUpdate);
+    socket.on("game-over", handleGameOver);
+    socket.on("game-reset", handleGameReset);
+
+    // Cleanup
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("game-start", handleGameStart);
+      socket.off("match", handleMatch);
+      socket.off("no-match", handleNoMatch);
+      socket.off("score-update", handleScoreUpdate);
+      socket.off("game-over", handleGameOver);
+      socket.off("game-reset", handleGameReset);
+    };
+  }, [cards]); // Tambahkan cards sebagai dependency
 
   const handleCardClick = (index) => {
-    if (gameOver || pickedCards.length === 2 || revealed[index] || pickedCards.includes(index)) return;
+    if (!isConnected || gameOver || pickedCards.length === 2 || revealed[index] || pickedCards.includes(index)) {
+      return;
+    }
 
     const updatedPickedCards = [...pickedCards, index];
     setPickedCards(updatedPickedCards);
@@ -99,9 +113,9 @@ const App = () => {
       <h1 className="title">Memory Game</h1>
 
       {error && <div className="error">{error}</div>}
+      {!isConnected && <div className="error">Connecting to server...</div>}
 
-      {/* Menampilkan pengumuman pemenang */}
-      {gameOver && (
+      {gameOver && winner && (
         <div className="announcement">
           <h2>GAME OVER! Player {winner.slice(0, 4)} is the winner 🎉</h2>
         </div>
@@ -112,7 +126,8 @@ const App = () => {
           <div
             key={index}
             onClick={() => handleCardClick(index)}
-            className={`card ${revealed[index] || pickedCards.includes(index) ? 'revealed' : ''}`}
+            className={`card ${revealed[index] || pickedCards.includes(index) ? 'revealed' : ''} 
+                       ${!isConnected ? 'disabled' : ''}`}
           >
             {(revealed[index] || pickedCards.includes(index)) ? card : '?'}
           </div>
