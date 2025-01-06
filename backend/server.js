@@ -107,5 +107,6 @@ io.on("connection", (socket) => {
 
 // Mulai server
 /* contoh menggunakan port 5000 karena di port 3000 sudah digunakan untuk frontend*/
+const port = process.env.PORT || 5000;
 initializeGame();
-server.listen(5000, () => console.log("Server running on port 5000"));
+server.listen(port, () => console.log(`Server running on port ${port}`));
