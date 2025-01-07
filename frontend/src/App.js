@@ -79,7 +79,7 @@ const App = () => {
     socket.on("game-over", handleGameOver);
     socket.on("game-reset", handleGameReset);
 
-    // Cleanup
+   
     return () => {
       socket.off("connect", handleConnect);
       socket.off("connect_error", handleConnectError);
@@ -90,7 +90,7 @@ const App = () => {
       socket.off("game-over", handleGameOver);
       socket.off("game-reset", handleGameReset);
     };
-  }, [cards]); // Tambahkan cards sebagai dependency
+  }, [cards]); 
 
   const handleCardClick = (index) => {
     if (!isConnected || gameOver || pickedCards.length === 2 || revealed[index] || pickedCards.includes(index)) {
